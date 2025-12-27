@@ -145,6 +145,11 @@ CADENCE
 SEQUENCE
 MODAL_HINT
 
+## TinyNotation Example Requirement
+Provide the full TinyNotation string for each entity, if there is only one voice involved. 
+If multiple voices are involved, give a list of strings per voice. 
+Do not shorten or truncate—include all notes, rhythms, ties, dots, and octaves exactly as in the excerpt.
+
 ## Final check (IMPORTANT)
 Briefly answer:
 - List which annotations are most uncertain, and why?
@@ -159,7 +164,7 @@ Return ONLY the following JSON array for entity annotations:
       "start_bar": X,
       "end_bar": Y,
       "voices": ["V0","V1",...],   // required for MOTIF, optional otherwise
-      "example": "...", // explicit tinynotation string example, or a lost of strings, if a few voices are involved
+      "example": "...", 
       "confidence": "high | medium-high | medium-low | low",
       
       "justification": "Brief musical explanation",
