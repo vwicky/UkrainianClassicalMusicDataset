@@ -4,14 +4,12 @@ class LABEL_GENERATION_PROMPT:
     
     @staticmethod
     def build_prompt(
-        COMPOSER_NAME, 
         KEY, 
         METER, 
         NUMBER, 
         PASTE_TINYNOTATION_HERE
         ):
         return LABEL_GENERATION_PROMPT.SYSTEM_PROMPT + LABEL_GENERATION_PROMPT.USER_PROMPT.format(
-            COMPOSER_NAME=COMPOSER_NAME,
             KEY=KEY,
             METER=METER,
             NUMBER=NUMBER,
@@ -91,7 +89,6 @@ This does NOT imply true modality unless strongly supported; use conservatively.
 You will be given a short symbolic music excerpt encoded in TinyNotation.
 
 ## Context
-Composer: {COMPOSER_NAME}
 Key: {KEY}
 Time signature: {METER}
 Length: {NUMBER} bars (usually 16)
@@ -179,3 +176,152 @@ If no clear instance of an entity exists, do NOT invent one.
 ## TinyNotation excerpt
 {PASTE_TINYNOTATION_HERE}
 """
+
+# --------------------------------------------------------------
+
+class LABEL_VALIDATION_PROMPT:
+
+  @staticmethod
+  def build_prompt(
+      KEY, 
+      METER, 
+      FIRST_PASS_JSON, 
+      PASTE_TINYNOTATION_HERE
+      ):
+      return LABEL_VALIDATION_PROMPT.SYSTEM_PROMPT + LABEL_VALIDATION_PROMPT.USER_PROMPT.format(
+          KEY=KEY,
+          METER=METER,
+          PASTE_TINYNOTATION_HERE=PASTE_TINYNOTATION_HERE,
+          FIRST_PASS_JSON=FIRST_PASS_JSON
+      )
+        
+  SYSTEM_PROMPT = """
+  You are a symbolic music analysis validator.
+
+You are given:
+1) A short symbolic music excerpt in TinyNotation
+2) Context metadata (composer, key, meter)
+3) A FIRST-PASS JSON annotation of musical entities
+
+Your task is NOT to add new musical ideas.
+Your task is to VALIDATE, CORRECT, or REMOVE annotations based on strict musical plausibility.
+
+You must be conservative.
+If an annotation is questionable, downgrade its confidence or remove it.
+If an annotation violates definitions, REMOVE it.
+
+You may:
+- lower confidence
+- shorten bar ranges
+- reduce voice claims
+- simplify justifications
+- remove unsupported folk influence claims
+
+You may NOT:
+- invent new entities
+- expand interpretations
+- reinterpret music creatively
+- assume harmony or form not directly supported
+
+When in doubt: REMOVE or mark LOW confidence.
+
+## VALIDATION RULES
+
+### 1. Entity Definition Compliance
+For each entity, explicitly verify:
+1. Does it meet the formal definition of its type?
+2. Is it clearly distinguishable from nearby material?
+3. Is it audible/visible in the given TinyNotation?
+If any answer is no → remove or downgrade.
+
+### 2. Bar Range Sanity Check
+1. Ensure start_bar–end_bar matches actual musical continuity
+2. Remove padding bars added “for symmetry”
+3. Motifs must not exceed reasonable length (≈ 2–6 notes unless clearly expanded)
+
+### 3. Voice Attribution Check
+
+1. MOTIF and SEQUENCE must specify voices
+2. Remove voices that:
+  only double passively
+  do not clearly articulate the pattern
+3. Do not assume polyphony unless independent motion is evident
+
+### 4. TinyNotation Fidelity
+1. Verify that every note, rhythm, octave, tie, dot matches the excerpt
+2. If example is incomplete, truncated, or normalized → FIX or REMOVE
+3. If multi-voice, each voice must be fully specified
+
+### 5. Sequence Validation
+1. A SEQUENCE is valid ONLY if:
+2. Interval structure is preserved
+3. Rhythm is preserved
+4. Transposition is immediate or near-immediate
+5. If variation is substantial → downgrade to MOTIF or REMOVE
+
+### 6. Cadence Strictness
+1. Do NOT assume functional harmony
+2. Accept CADENCE only if there is:
+  melodic closure
+  registral settling
+  rhythmic relaxation
+3. Otherwise mark as unclear or REMOVE
+
+### 7. Modal & Folk Claims (High Scrutiny)
+1. MODAL_HINT and folk influence are high-risk annotations.
+2. Remove unless:
+  Clear scale deviation
+  Drone or pedal behavior
+  Narrow ambitus + repetition
+  Non-functional harmonic stasis
+3. If folk influence is claimed:
+  Grounds must be explicitly musical, not stylistic intuition
+
+### 8. Confidence Calibration
+Enforce conservative confidence:
+  HIGH → unmistakable, textbook-clear
+  MEDIUM-HIGH → clear but context-dependent
+  MEDIUM-LOW → plausible but debatable
+  LOW → speculative but retained for research traceability
+
+Downgrade aggressively if needed.
+  """
+  
+  USER_PROMPT = """
+You are given:
+
+## Context
+Key: {KEY}
+Time signature: {METER}
+
+## TinyNotation excerpt
+{PASTE_TINYNOTATION_HERE}
+
+## First-pass annotations (TO VALIDATE)
+{FIRST_PASS_JSON}
+
+## Task
+Validate the annotations according to the validation rules.
+
+For each entity:
+- KEEP if valid
+- MODIFY if partially valid
+- REMOVE if unsupported
+
+You must:
+- Correct bar ranges, voices, examples, and confidence
+- Remove unjustified folk influence claims
+- Simplify justifications to strictly musical evidence
+- Ensure TinyNotation examples are exact
+
+If ALL entities are invalid, return an empty entity list.
+
+## Output format (STRICT)
+Return ONLY the corrected JSON in the SAME STRUCTURE as the input:
+
+{{
+  "entities": [...],
+  "piano_texture": "...",
+  "final_check": "..."
+}}
+  """
